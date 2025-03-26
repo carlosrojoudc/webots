@@ -1,0 +1,90 @@
+#VRML_SIM R2023b utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/robots/k-team/khepera4/protos/Khepera4.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/appearances/protos/Roughcast.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/apartment_structure/protos/Wall.proto"
+
+WorldInfo {
+  info [
+    "Rob Square"
+  ]
+  title "Rob Square"
+  basicTimeStep 16
+  coordinateSystem "NUE"
+}
+Viewpoint {
+  orientation -0.7070758631281422 0.7070646351433024 0.010164915703622487 3.1194999836564077
+  position 0.12653007700572783 5.2365939651378035 0.4153928115791128
+}
+TexturedBackground {
+  texture "mars"
+  skybox FALSE
+}
+TexturedBackgroundLight {
+  castShadows FALSE
+}
+RectangleArena {
+  translation 0.0133855 0 0.22826
+  rotation -0.5773502691896258 0.5773502691896258 0.5773502691896258 2.0943951023931953
+  floorSize 3 3
+}
+Wall {
+  translation 0.02 0.05 -1.27
+  rotation 0 1 0 0
+  size 3 0.1 1
+}
+Wall {
+  translation 0.02 0.05 0.98
+  rotation 0 1 0 0
+  name "wall(1)"
+  size 1.5 0.1 0.75
+}
+Wall {
+  translation 1.14 0.05 1.23
+  rotation 0 1 0 0
+  name "wall(6)"
+  size 0.75 0.1 0.5
+}
+Wall {
+  translation -1.36 0.05 0.23
+  rotation 0 1 0 0
+  name "wall(2)"
+  size 0.25 0.1 1
+}
+Wall {
+  translation -0.11 0.05 0.23
+  rotation 0 1 0 0
+  name "wall(5)"
+  size 0.25 0.1 0.75
+}
+Wall {
+  translation -1.36 0.05 -0.52
+  rotation 0 1 0 0
+  name "wall(4)"
+  size 0.25 0.1 1
+}
+Wall {
+  translation 1.02 0.05 -0.27
+  rotation 0 1 0 0
+  name "wall(3)"
+  size 1 0.1 0.5
+}
+Wall {
+  translation 1.26398 0.0500043 1.1
+  rotation 2.560909999991428e-06 -0.9999999999966527 -3.694309999987634e-07 -1.5708053071795867
+  name "Object"
+  size 0.25 0.1 0.25
+  appearance Roughcast {
+    colorOverride 1 1 0
+    textureTransform TextureTransform {
+    }
+  }
+}
+Khepera4 {
+  translation -1.11 1.38295e-16 0.86
+  rotation -1 0 0 1.5707963267948968
+  controller "<none>"
+}
