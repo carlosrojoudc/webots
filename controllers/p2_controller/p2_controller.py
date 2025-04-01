@@ -33,6 +33,7 @@ INFRARED_SENSORS_NAMES = [
     "rear infrared sensor",
 ]
 
+GRID_OCUPACION = [[]]
 
 def enable_distance_sensors(robot, timeStep, sensorNames):
     """
@@ -123,18 +124,56 @@ def process_image_rgb(camera):
 
             # TODO: Procesar el pixel (x,y) de la imagen.
             # ...
+    
+"""
+Se acumulan menos errores, si se realizan movimientos discretos celda a
+celda (el robot avanza o gira, se detiene, sensoriza, 
+vuelve a avanzar o girar).
+"""
+def exploracion():
+    pass
 
 
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
     robot, leftWheel, rightWheel, irSensorList, posL, posR, camera = init_devices(TIME_STEP)
-
+    
+    print(irSensorList)
     # Ejecutamos una sincronización para tener disponible el primer frame de la cámara.
     robot.step(TIME_STEP)
     
-    print("Funciona")
+    for sensor in irSensorList:
+        print(sensor.getValue())
+    
+    print(robot.getDevice("front right infrared sensor").getValue())
     # TODO Implementar arquitectura de control del robot.
-    # ...
+    # 1 etapa: exploracion
+    #wall_following()
+    while(robot.step(TIME_STEP) != -1):
+        left_wall = irSensorList[5].getValue() > 80
+        front_wall = irSensorList[7].getValue() > 80
+        
+        left_speed = MAX_SPEED
+        right_speed = MAX_SPEED
+        
+        if front_wall:
+            print("Girando derecha")
+            left_speed = MAX_SPEED
+            right_speed = MAX_SPEED/4
+        else:
+            if left_wall:
+                print("Yendo recto")
+                left_speed = MAX_SPEED
+                right_speed = MAX_SPEED
+            else:
+                print("Girando izquierda")
+                left_speed = MAX_SPEED/4
+                right_speed = MAX_SPEED
+                
+        leftWheel.setVelocity(left_speed)
+        rightWheel.setVelocity(right_speed)
+            
+    # 2 etapa: Patrullar y volver a base
 
 
 if __name__ == "__main__":
