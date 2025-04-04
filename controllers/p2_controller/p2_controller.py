@@ -168,28 +168,6 @@ def main():
         
     left_speed = MAX_SPEED
     right_speed = MAX_SPEED
-    
-    """      
-    if front_wall:
-        print("Girando derecha")
-        left_speed = MAX_SPEED//2
-        right_speed = MAX_SPEED//2
-        leftWheel.setPosition(pos)
-        rightWheel.setPosition(pos)
-    else:
-        if left_wall:
-            print("Yendo recto")
-            left_speed = MAX_SPEED
-            right_speed = MAX_SPEED
-        else:
-            print("Girando izquierda")
-            left_speed = MAX_SPEED/4
-            right_speed = MAX_SPEED
-                
-    leftWheel.setVelocity(left_speed)
-    rightWheel.setVelocity(right_speed)
-    t = t + TIME_STEP / 1000.0;
-    robot.step(TIME_STEP)"""
        
     while(robot.step(TIME_STEP) != -1):
         left_sensor = irSensorList[1].getValue()
@@ -233,7 +211,6 @@ def main():
                 rightWheel.setPosition(giro_90R)
                 while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-np.pi/90 or posR.getValue() <= giro_90R-np.pi/90)):
                     continue
-        print("adgfsfd")
                 
                 
         time.sleep(0.1)
