@@ -20,6 +20,15 @@ MAX_SPEED = 47.6
 CRUISE_SPEED = 8
 # Time step por defecto para el controlador.
 TIME_STEP = 32
+# Datos odometria
+# Espacio entre ruedas
+WHEEL_SPACING = 108.29
+# Radio
+RADIO = 21
+RADIO_ENTRE_RUEDAS = WHEEL_SPACING /2
+TAMAÑO_CELDA = 250
+
+
 
 # Nombres de los sensores de distancia basados en infrarrojo.
 INFRARED_SENSORS_NAMES = [
@@ -149,29 +158,86 @@ def main():
     # TODO Implementar arquitectura de control del robot.
     # 1 etapa: exploracion
     #wall_following()
+    F = 2.0
+    t = 0.0
+    pos = 4*np.pi # Avance de 25cm
+    leftPos = 0
+    rightPos = 0
+    left_wall = irSensorList[1].getValue() > 80
+    front_wall = irSensorList[3].getValue() > 80
+        
+    left_speed = MAX_SPEED
+    right_speed = MAX_SPEED
+    
+    """      
+    if front_wall:
+        print("Girando derecha")
+        left_speed = MAX_SPEED//2
+        right_speed = MAX_SPEED//2
+        leftWheel.setPosition(pos)
+        rightWheel.setPosition(pos)
+    else:
+        if left_wall:
+            print("Yendo recto")
+            left_speed = MAX_SPEED
+            right_speed = MAX_SPEED
+        else:
+            print("Girando izquierda")
+            left_speed = MAX_SPEED/4
+            right_speed = MAX_SPEED
+                
+    leftWheel.setVelocity(left_speed)
+    rightWheel.setVelocity(right_speed)
+    t = t + TIME_STEP / 1000.0;
+    robot.step(TIME_STEP)"""
+       
     while(robot.step(TIME_STEP) != -1):
-        left_wall = irSensorList[5].getValue() > 80
-        front_wall = irSensorList[7].getValue() > 80
+        left_sensor = irSensorList[1].getValue()
+        front_sensor = irSensorList[3].getValue() 
+        left_wall = left_sensor > 150
+        front_wall = front_sensor > 150
         
-        left_speed = MAX_SPEED
-        right_speed = MAX_SPEED
-        
+        left_speed = CRUISE_SPEED
+        right_speed = CRUISE_SPEED
+        leftWheel.setVelocity(left_speed)
+        rightWheel.setVelocity(right_speed)
+  
         if front_wall:
             print("Girando derecha")
-            left_speed = MAX_SPEED
-            right_speed = MAX_SPEED/4
+            deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
+            deltaR = -deltaL
+            giro_90L = posL.getValue() + deltaL
+            giro_90R = posR.getValue() + deltaR
+            leftWheel.setPosition(giro_90L)
+            rightWheel.setPosition(giro_90R)
+            while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-np.pi/90 or posR.getValue() < giro_90R-np.pi/90)):
+                continue
         else:
             if left_wall:
                 print("Yendo recto")
-                left_speed = MAX_SPEED
-                right_speed = MAX_SPEED
+                deltaL = 250 / RADIO
+                deltaR = deltaL
+                avanzeL = posL.getValue() + deltaL
+                avanzeR = posR.getValue() + deltaR
+                leftWheel.setPosition(avanzeL)
+                rightWheel.setPosition(avanzeR)
+                while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL-1 or posR.getValue() < avanzeR-1)):
+                    continue
             else:
                 print("Girando izquierda")
-                left_speed = MAX_SPEED/4
-                right_speed = MAX_SPEED
+                deltaR = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
+                deltaL = -deltaR
+                giro_90L = posL.getValue() + deltaL
+                giro_90R = posR.getValue() + deltaR
+                leftWheel.setPosition(giro_90L)
+                rightWheel.setPosition(giro_90R)
+                while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-np.pi/90 or posR.getValue() <= giro_90R-np.pi/90)):
+                    continue
+        print("adgfsfd")
                 
-        leftWheel.setVelocity(left_speed)
-        rightWheel.setVelocity(right_speed)
+                
+        time.sleep(0.1)
+        #t = t + TIME_STEP / 1000.0;
             
     # 2 etapa: Patrullar y volver a base
 
