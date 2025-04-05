@@ -26,7 +26,9 @@ WHEEL_SPACING = 108.29
 # Radio
 RADIO = 21
 RADIO_ENTRE_RUEDAS = WHEEL_SPACING /2
-TAMAÑO_CELDA = 250
+TAMANO_CELDA = 250
+# Time delay between fucntions
+SLEEP = 0.05
 
 
 
@@ -139,8 +141,67 @@ Se acumulan menos errores, si se realizan movimientos discretos celda a
 celda (el robot avanza o gira, se detiene, sensoriza, 
 vuelve a avanzar o girar).
 """
-def exploracion():
-    pass
+def wallFollowing():
+    pos = 4*np.pi # Avance de 25cm
+    leftPos = 0
+    rightPos = 0
+    left_wall = irSensorList[1].getValue() > 80
+    front_wall = irSensorList[3].getValue() > 80
+        
+    left_speed = MAX_SPEED
+    right_speed = MAX_SPEED
+    while(robot.step(TIME_STEP) != -1):
+        left_sensor = irSensorList[1].getValue()
+        front_sensor = irSensorList[3].getValue() 
+        left_wall = left_sensor > 150
+        front_wall = front_sensor > 150
+        
+        left_speed = CRUISE_SPEED
+        right_speed = CRUISE_SPEED
+        leftWheel.setVelocity(left_speed)
+        rightWheel.setVelocity(right_speed)
+  
+        if front_wall:
+            print("Girando derecha")
+            deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
+            deltaR = -deltaL
+            giro_90L = posL.getValue() + deltaL
+            giro_90R = posR.getValue() + deltaR
+            leftWheel.setPosition(giro_90L)
+            rightWheel.setPosition(giro_90R)
+            while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-np.pi/90 or posR.getValue() < giro_90R-np.pi/90)):
+                continue
+        else:
+            if left_wall:
+                print("Yendo recto")
+                deltaL = 250 / RADIO
+                deltaR = deltaL
+                avanzeL = posL.getValue() + deltaL
+                avanzeR = posR.getValue() + deltaR
+                leftWheel.setPosition(avanzeL)
+                rightWheel.setPosition(avanzeR)
+                while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
+                    continue
+            else:
+                print("Girando izquierda")
+                deltaR = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
+                deltaL = -deltaR
+                giro_90L = posL.getValue() + deltaL
+                giro_90R = posR.getValue() + deltaR
+                leftWheel.setPosition(giro_90L)
+                rightWheel.setPosition(giro_90R)
+                while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-np.pi/90 or posR.getValue() <= giro_90R-np.pi/90)):
+                    continue
+                # y luego ir recto
+                deltaL = 250 / RADIO
+                deltaR = deltaL
+                avanzeL = posL.getValue() + deltaL
+                avanzeR = posR.getValue() + deltaR
+                leftWheel.setPosition(avanzeL)
+                rightWheel.setPosition(avanzeR)
+                while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
+                    continue
+        time.sleep(SLEEP)
 
 
 def main():
@@ -158,11 +219,7 @@ def main():
     # TODO Implementar arquitectura de control del robot.
     # 1 etapa: exploracion
     #wall_following()
-    F = 2.0
-    t = 0.0
-    pos = 4*np.pi # Avance de 25cm
-    leftPos = 0
-    rightPos = 0
+
     left_wall = irSensorList[1].getValue() > 80
     front_wall = irSensorList[3].getValue() > 80
         
@@ -199,7 +256,7 @@ def main():
                 avanzeR = posR.getValue() + deltaR
                 leftWheel.setPosition(avanzeL)
                 rightWheel.setPosition(avanzeR)
-                while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL-1 or posR.getValue() < avanzeR-1)):
+                while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
                     continue
             else:
                 print("Girando izquierda")
@@ -211,11 +268,16 @@ def main():
                 rightWheel.setPosition(giro_90R)
                 while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-np.pi/90 or posR.getValue() <= giro_90R-np.pi/90)):
                     continue
-                
-                
-        time.sleep(0.1)
-        #t = t + TIME_STEP / 1000.0;
-            
+                # y luego ir recto
+                deltaL = 250 / RADIO
+                deltaR = deltaL
+                avanzeL = posL.getValue() + deltaL
+                avanzeR = posR.getValue() + deltaR
+                leftWheel.setPosition(avanzeL)
+                rightWheel.setPosition(avanzeR)
+                while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
+                    continue
+        time.sleep(SLEEP)
     # 2 etapa: Patrullar y volver a base
 
 
