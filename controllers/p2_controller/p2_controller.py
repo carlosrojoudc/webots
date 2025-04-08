@@ -29,6 +29,8 @@ RADIO_ENTRE_RUEDAS = WHEEL_SPACING /2
 TAMANO_CELDA = 250
 # Time delay between fucntions
 SLEEP = 0.05
+# Tamaño del mapa
+MAP_SIZE = (25,25)
 
 
 
@@ -141,17 +143,26 @@ Se acumulan menos errores, si se realizan movimientos discretos celda a
 celda (el robot avanza o gira, se detiene, sensoriza, 
 vuelve a avanzar o girar).
 """
-def wallFollowing(left_sensor, front_sensor, leftWheel, rightWheel, posL, posR, robot):
+def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, direction):
+    direction_deltas = [
+        (-1, 0),   # North
+        (0, 1),   # East
+        (1, 0),  # South
+        (0, -1)    # West
+    ]
+    
+    # Lectura de sensores
+    left_sensor = sensors[1].getValue()
+    front_sensor = sensors[3].getValue()
+
     left_wall = left_sensor > 150
     front_wall = front_sensor > 150
-        
-    left_speed = CRUISE_SPEED
-    right_speed = CRUISE_SPEED
 
-    leftWheel.setVelocity(left_speed)
-    rightWheel.setVelocity(right_speed)
-  
+    x,y = robot_pos
+    dx,dy = direction_deltas[direction]
+
     if front_wall:
+        direction = (direction+1)%4
         print("Girando derecha")
         deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
         deltaR = -deltaL
@@ -172,7 +183,11 @@ def wallFollowing(left_sensor, front_sensor, leftWheel, rightWheel, posL, posR, 
             rightWheel.setPosition(avanzeR)
             while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
                 continue
+            # Actualizamos posicion del robot cada vez que avanzamos
+            robot_pos = (x+dx,y+dy)
         else:
+            # Restamos cada vez que giramos a la izquierda
+            direction = (direction-1) %4
             print("Girando izquierda")
             deltaR = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
             deltaL = -deltaR
@@ -182,7 +197,8 @@ def wallFollowing(left_sensor, front_sensor, leftWheel, rightWheel, posL, posR, 
             rightWheel.setPosition(giro_90R)
             while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-np.pi/90 or posR.getValue() <= giro_90R-np.pi/90)):
                 continue
-            # y luego ir recto
+            # Y avanzamos
+            print("Yendo recto")
             deltaL = 250 / RADIO
             deltaR = deltaL
             avanzeL = posL.getValue() + deltaL
@@ -191,8 +207,45 @@ def wallFollowing(left_sensor, front_sensor, leftWheel, rightWheel, posL, posR, 
             rightWheel.setPosition(avanzeR)
             while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
                 continue
-        time.sleep(SLEEP)
+            # Actualizamos posicion del robot cada vez que avanzamos
+            robot_pos = (x+dx,y+dy)
 
+    print(f"Robot:[{robot_pos}], direction: {direction}")
+    return robot_pos, direction
+
+def mapping(mapa, robot_position, direction, sensors):
+
+    leftW = sensors[1].getValue() > 150
+    frontW = sensors[3].getValue() > 150
+    #rightW = sensors[5].getValue() > 150
+
+    x, y = robot_position
+
+    print(f"Posicion: {robot_position}")
+    match direction:
+        case 0:
+            if leftW:
+                mapa[x, y-1] = 1
+            if frontW:
+                mapa[x-1, y] = 1
+        case 1:
+            if leftW:
+                mapa[x-1, y] = 1
+            if frontW:
+                mapa[x, y+1] = 1
+        case 2:
+            if leftW:
+                mapa[x, y+1] = 1
+            if frontW:
+                mapa[x+1, y] = 1
+        case 3:
+            if leftW:
+                mapa[x+1, y] = 1
+            if frontW:
+                mapa[x, y-1] = 1
+        case _:
+            print(f"ERROR DIRECCION: {direction}")
+    return mapa
 
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
@@ -201,20 +254,28 @@ def main():
     print(irSensorList)
     # Ejecutamos una sincronización para tener disponible el primer frame de la cámara.
     robot.step(TIME_STEP)
-    
-    for sensor in irSensorList:
-        print(sensor.getValue())
+
+    # Establecemos la velocidad del robot
+    left_speed = CRUISE_SPEED
+    right_speed = CRUISE_SPEED
+    leftWheel.setVelocity(left_speed)
+    rightWheel.setVelocity(right_speed)
     
     # TODO Implementar arquitectura de control del robot.
     # 1 etapa: Wall following y mapeado
-    
-    while(robot.step(TIME_STEP) != -1):
-        # Cogemos valores de los sensores
-        left_sensor = irSensorList[1].getValue()
-        front_sensor = irSensorList[3].getValue() 
+    x,y = MAP_SIZE
+    initial_pos = (x//2, y//2)
+    robot_pos = initial_pos
+    dir = 0
 
-        wallFollowing(left_sensor, front_sensor, leftWheel, rightWheel, posL, posR, robot)
-        print("Mapeo")
+    map = np.zeros(MAP_SIZE, np.uint8)
+
+    while(robot.step(TIME_STEP) != -1):
+        count = 0
+        robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
+        time.sleep(SLEEP)
+        map = mapping(map, robot_pos, dir, irSensorList)
+        print(map)
         
     # 2 etapa: Patrullar y volver a base
 
