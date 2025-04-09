@@ -13,6 +13,7 @@ from controller import Camera  # Módulo de Webots para el control de la cámara
 import time  # Si queremos utilizar time.sleep().
 import numpy as np  # Si queremos utilizar numpy para procesar la imagen.
 import cv2  # Si queremos utilizar OpenCV para procesar la imagen.
+import sys
 
 # Máxima velocidad de las ruedas soportada por el robot (khepera4).
 MAX_SPEED = 47.6
@@ -31,7 +32,10 @@ TAMANO_CELDA = 250
 SLEEP = 0.05
 # Tamaño del mapa
 MAP_SIZE = (25,25)
-
+# Error minimo giros ()
+ERROR = np.pi/180
+# Umbral para deteccion de pared
+UMBRAL = 175
 
 
 # Nombres de los sensores de distancia basados en infrarrojo.
@@ -168,7 +172,7 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
         giro_90R = posR.getValue() + deltaR
         leftWheel.setPosition(giro_90L)
         rightWheel.setPosition(giro_90R)
-        while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-np.pi/90 or posR.getValue() < giro_90R-np.pi/90)):
+        while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
             continue
     else:
         if left_wall:
@@ -195,7 +199,7 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
             giro_90R = posR.getValue() + deltaR
             leftWheel.setPosition(giro_90L)
             rightWheel.setPosition(giro_90R)
-            while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-np.pi/90 or posR.getValue() <= giro_90R-np.pi/90)):
+            while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-ERROR or posR.getValue() <= giro_90R-ERROR)):
                 continue
             # Y avanzamos
             print("Yendo recto")
@@ -217,8 +221,8 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
 
 def mapping(mapa, robot_position, direction, sensors):
 
-    leftW = sensors[1].getValue() > 150
-    frontW = sensors[3].getValue() > 150
+    leftW = sensors[1].getValue() > 175
+    frontW = sensors[3].getValue() > 175
     #rightW = sensors[5].getValue() > 150
 
     x, y = robot_position
@@ -228,8 +232,8 @@ def mapping(mapa, robot_position, direction, sensors):
         case 0:
             if leftW:
                 mapa[x, y-1] = 1
-            if frontW:
-                mapa[x-1, y] = 1
+            #if frontW:
+                #mapa[x-1, y] = 1
         case 1:
             if leftW:
                 mapa[x-1, y] = 1
@@ -248,6 +252,40 @@ def mapping(mapa, robot_position, direction, sensors):
         case _:
             print(f"ERROR DIRECCION: {direction}")
     return mapa
+
+"""
+    El robot si empieza con una unica pared a su derecha, gira a la izquierda
+    y avanza lo que provoca un comportamiento erroneo.
+    Init_position deja al robot con la pared a su izquierda.
+"""
+def init_position(sensors, robot, leftW, rightW, posL, posR):
+    if sensors[1].getValue() > 150 or sensors[3].getValue() > 150:
+        return
+    if sensors[5].getValue() > 150:
+        deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
+        deltaR = -deltaL
+        giro_90L = posL.getValue() + deltaL
+        giro_90R = posR.getValue() + deltaR
+        leftW.setPosition(giro_90L)
+        rightW.setPosition(giro_90R)
+        while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
+            continue
+
+def optimized_map(mapa):
+    rows = np.any(mapa == 1, axis=1)
+    cols = np.any(mapa == 1, axis=0)
+
+    if not np.any(rows) or not np.any(cols):
+        return "MAPA VACIO"
+
+    first_row = np.argmax(rows)
+    last_row = len(rows) - np.argmax(rows[::-1])
+    first_col = np.argmax(cols)
+    last_col = len(cols) - np.argmax(cols[::-1])
+
+    new_map = mapa[first_row:last_row, first_col:last_col]
+    return new_map
+
 
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
@@ -272,12 +310,24 @@ def main():
 
     map = np.zeros(MAP_SIZE, np.uint8)
 
+    # Colocar el robot con el muro a su izquierda, delante o detras para evitar errores
+    init_position(irSensorList, robot, leftWheel, rightWheel, posL, posR)
+
+    # Variable que controla si nos movemos por primera vez
+    # De esta forma controlamos la condicion de parada
+    init_move = -2
     while(robot.step(TIME_STEP) != -1):
         count = 0
         robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
         time.sleep(SLEEP)
         map = mapping(map, robot_pos, dir, irSensorList)
-        print(map)
+        # Llegamos al principio?
+        if (initial_pos == robot_pos and (init_move >= 0)):
+            map = optimized_map(map)
+            print(map)
+            sys.exit(0)
+        init_move += 1
+
         
     # 2 etapa: Patrullar y volver a base
 
