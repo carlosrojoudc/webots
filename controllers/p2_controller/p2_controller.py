@@ -36,7 +36,8 @@ MAP_SIZE = (25,25)
 ERROR = np.pi/180
 # Umbral para deteccion de pared
 UMBRAL = 175
-
+# Umbral para la deteccion de amarillo
+THRESHOLD = 0.5
 
 # Nombres de los sensores de distancia basados en infrarrojo.
 INFRARED_SENSORS_NAMES = [
@@ -286,6 +287,39 @@ def optimized_map(mapa):
     new_map = mapa[first_row:last_row, first_col:last_col]
     return new_map
 
+"""
+    Comportamiento de retorno a base
+"""
+def base():
+    return
+
+"""
+    Check ratio of yellow pixels 
+"""
+def check_camera(camera):
+    W = camera.getWidth()
+    H = camera.getHeight()
+
+    image = camera.getImage()
+    print(image)
+ 
+    # Convert BGR to HSV
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+ 
+    # define range of blue color in HSV
+    lower_yellow = np.array([20,100,100])
+    upper_yellow = np.array([30,255,255])
+ 
+    # Threshold the HSV image to get only blue colors
+    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+ 
+    # Bitwise-AND mask and original image
+    res = cv2.bitwise_and(image,image, mask= mask)
+
+    if res.size/W*H >= THRESHOLD:
+        print("AMARILLO")
+        return True
+    return False
 
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
@@ -325,11 +359,17 @@ def main():
         if (initial_pos == robot_pos and (init_move >= 0)):
             map = optimized_map(map)
             print(map)
-            sys.exit(0)
+            break
         init_move += 1
-
-        
+    
+    objeto_interes = False
     # 2 etapa: Patrullar y volver a base
+    while(robot.step(TIME_STEP) != -1):
+        _ = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
+
+        objeto_interes = check_camera(camera)
+        if (objeto_interes):
+            base()
 
 
 if __name__ == "__main__":
