@@ -158,8 +158,6 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
     left_wall = left_sensor > 150
     front_wall = front_sensor > 150
 
-    x,y = robot_pos
-    dx,dy = direction_deltas[direction]
 
     if front_wall:
         direction = (direction+1)%4
@@ -184,7 +182,9 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
             while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
                 continue
             # Actualizamos posicion del robot cada vez que avanzamos
-            robot_pos = (x+dx,y+dy)
+            x,y = robot_pos
+            dx,dy = direction_deltas[direction]
+            robot_pos = (x+dx, y+dy)
         else:
             # Restamos cada vez que giramos a la izquierda
             direction = (direction-1) %4
@@ -208,7 +208,9 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
             while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
                 continue
             # Actualizamos posicion del robot cada vez que avanzamos
-            robot_pos = (x+dx,y+dy)
+            x,y = robot_pos
+            dx,dy = direction_deltas[direction]
+            robot_pos = (x+dx, y+dy)
 
     print(f"Robot:[{robot_pos}], direction: {direction}")
     return robot_pos, direction
