@@ -37,7 +37,7 @@ ERROR = np.pi/180
 # Umbral para deteccion de pared
 UMBRAL = 175
 # Umbral para la deteccion de amarillo
-THRESHOLD = 0.5
+THRESHOLD = 0.1
 
 # Nombres de los sensores de distancia basados en infrarrojo.
 INFRARED_SENSORS_NAMES = [
@@ -134,12 +134,13 @@ def process_image_rgb(camera):
     image = camera.getImage()
 
     # Si es suficiente, podríamos procesar solo una parte de la imagen para optimizar .
-    for x in range(0, W):
-        for y in range(0, H):
+    for x in range(W//2, W//2+1):
+        for y in range(H//2, H//2+1):
             b = camera.imageGetBlue(image, W, x, y)
             g = camera.imageGetGreen(image, W, x, y)
             r = camera.imageGetRed(image, W, x, y)
 
+            print(f"{b},{g},{r}")
             # TODO: Procesar el pixel (x,y) de la imagen.
             # ...
     
@@ -166,7 +167,6 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
 
     if front_wall:
         direction = (direction+1)%4
-        print("Girando derecha")
         deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
         deltaR = -deltaL
         giro_90L = posL.getValue() + deltaL
@@ -177,7 +177,6 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
             continue
     else:
         if left_wall:
-            print("Yendo recto")
             deltaL = 250 / RADIO
             deltaR = deltaL
             avanzeL = posL.getValue() + deltaL
@@ -193,7 +192,6 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
         else:
             # Restamos cada vez que giramos a la izquierda
             direction = (direction-1) %4
-            print("Girando izquierda")
             deltaR = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
             deltaL = -deltaR
             giro_90L = posL.getValue() + deltaL
@@ -203,7 +201,6 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
             while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-ERROR or posR.getValue() <= giro_90R-ERROR)):
                 continue
             # Y avanzamos
-            print("Yendo recto")
             deltaL = 250 / RADIO
             deltaR = deltaL
             avanzeL = posL.getValue() + deltaL
@@ -217,7 +214,6 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
             dx,dy = direction_deltas[direction]
             robot_pos = (x+dx, y+dy)
 
-    print(f"Robot:[{robot_pos}], direction: {direction}")
     return robot_pos, direction
 
 def mapping(mapa, robot_position, direction, sensors):
@@ -228,7 +224,6 @@ def mapping(mapa, robot_position, direction, sensors):
 
     x, y = robot_position
 
-    print(f"Posicion: {robot_position}")
     match direction:
         case 0:
             if leftW:
@@ -291,7 +286,7 @@ def optimized_map(mapa):
     Comportamiento de retorno a base
 """
 def base():
-    return
+    pass
 
 """
     Check ratio of yellow pixels 
@@ -300,32 +295,31 @@ def check_camera(camera):
     W = camera.getWidth()
     H = camera.getHeight()
 
-    image = camera.getImage()
-    print(image)
- 
+    image = np.array(camera.getImageArray(), np.uint8)
+
     # Convert BGR to HSV
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
  
-    # define range of blue color in HSV
-    lower_yellow = np.array([20,100,100])
-    upper_yellow = np.array([30,255,255])
- 
+    # define range of yellow color in HSV
+    lower_yellow = np.array([90,80,80])
+    upper_yellow = np.array([100,255,255])
+
+    #print(hsv[W//2][H//2])
     # Threshold the HSV image to get only blue colors
     mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
- 
-    # Bitwise-AND mask and original image
-    res = cv2.bitwise_and(image,image, mask= mask)
 
-    if res.size/W*H >= THRESHOLD:
-        print("AMARILLO")
+    size = cv2.countNonZero(mask)
+
+    current = size/(W*H)
+    if current >= THRESHOLD:
         return True
     return False
 
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
     robot, leftWheel, rightWheel, irSensorList, posL, posR, camera = init_devices(TIME_STEP)
-    
-    print(irSensorList)
+
     # Ejecutamos una sincronización para tener disponible el primer frame de la cámara.
     robot.step(TIME_STEP)
 
@@ -351,7 +345,6 @@ def main():
     # De esta forma controlamos la condicion de parada
     init_move = -2
     while(robot.step(TIME_STEP) != -1):
-        count = 0
         robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
         time.sleep(SLEEP)
         map = mapping(map, robot_pos, dir, irSensorList)
@@ -363,10 +356,9 @@ def main():
         init_move += 1
     
     objeto_interes = False
-    # 2 etapa: Patrullar y volver a base
+    time.sleep(SLEEP)
     while(robot.step(TIME_STEP) != -1):
-        _ = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
-
+        robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
         objeto_interes = check_camera(camera)
         if (objeto_interes):
             base()
