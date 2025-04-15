@@ -14,6 +14,7 @@ import time  # Si queremos utilizar time.sleep().
 import numpy as np  # Si queremos utilizar numpy para procesar la imagen.
 import cv2  # Si queremos utilizar OpenCV para procesar la imagen.
 import sys
+from pathfinding import *
 
 # Máxima velocidad de las ruedas soportada por el robot (khepera4).
 MAX_SPEED = 47.6
@@ -267,7 +268,8 @@ def init_position(sensors, robot, leftW, rightW, posL, posR):
         while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
             continue
 
-def optimized_map(mapa):
+def optimized_map(mapa, init_pos):
+    x,y = init_pos
     rows = np.any(mapa == 1, axis=1)
     cols = np.any(mapa == 1, axis=0)
 
@@ -280,13 +282,17 @@ def optimized_map(mapa):
     last_col = len(cols) - np.argmax(cols[::-1])
 
     new_map = mapa[first_row:last_row, first_col:last_col]
-    return new_map
+    x =  x-first_row
+    y = y-first_col
+    return new_map, (x,y)
 
 """
     Comportamiento de retorno a base
 """
-def base():
-    pass
+def base(mapa, robot_pos, init_pos):
+    path = find_path(mapa, robot_pos, init_pos)
+    print(path)
+    
 
 """
     Check ratio of yellow pixels 
@@ -350,18 +356,20 @@ def main():
         map = mapping(map, robot_pos, dir, irSensorList)
         # Llegamos al principio?
         if (initial_pos == robot_pos and (init_move >= 0)):
-            map = optimized_map(map)
+            map, initial_pos = optimized_map(map, initial_pos)
             print(map)
             break
         init_move += 1
     
+    robot_pos = initial_pos
     objeto_interes = False
     time.sleep(SLEEP)
     while(robot.step(TIME_STEP) != -1):
         robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
         objeto_interes = check_camera(camera)
         if (objeto_interes):
-            base()
+            base(map, robot_pos, initial_pos)
+            time.sleep(SLEEP)
 
 
 if __name__ == "__main__":
