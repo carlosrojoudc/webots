@@ -292,6 +292,7 @@ def optimized_map(mapa, init_pos):
 def base(mapa, robot_pos, init_pos):
     path = find_path(mapa, robot_pos, init_pos)
     print(path)
+    return path
     
 
 """
@@ -321,6 +322,87 @@ def check_camera(camera):
     if current >= THRESHOLD:
         return True
     return False
+
+
+def get_direction(robot_pos, obj_pos):
+    x,y = robot_pos
+    ox,oy = obj_pos
+    if x < ox:
+        if y == oy:
+            return 2
+    else:
+        if y==oy:
+            return 0
+        elif y < oy:
+            return 1
+        else:
+            return 3
+        
+
+def move_robot(leftWheel, rightWheel, posL, posR, robot, robot_pos, direction, desired_direction):
+    grados = 0
+    diference = abs(direction -desired_direction)
+    # Calculamos la direccion a la que tiene que girar
+    if diference == 0:
+        # No tiene que girar
+        grados = 0
+    elif diference > 2:
+        if direction < desired_direction:
+            # Tiene que girar a izquierda
+            direction = (direction-1)%4
+            grados = -np.pi/2
+        else:
+            # Tiene que girar a derecha
+            direction = (direction+1)%4
+            grados = np.pi/2
+    elif diference == 2:
+        direction = (direction+2)%4
+        # Tiene que girar 180 grados
+        grados = np.pi
+    else:
+        if direction < desired_direction:
+            # Tiene que girar a derecha
+            direction = (direction+1)%4
+            grados = np.pi/2
+        else:
+            # Tiene que girar a izquierda
+            direction = (direction-1)%4
+            grados = -np.pi/2
+    
+    # Gira:
+    deltaL = grados * RADIO_ENTRE_RUEDAS / RADIO
+    deltaR = -deltaL
+    giro_90L = posL.getValue() + deltaL
+    giro_90R = posR.getValue() + deltaR
+    leftWheel.setPosition(giro_90L)
+    rightWheel.setPosition(giro_90R)
+    while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
+        continue
+
+    direction_deltas = [
+        (-1, 0),   # North
+        (0, 1),   # East
+        (1, 0),  # South
+        (0, -1)    # West
+    ]
+    
+    # Avanza:
+    deltaL = 250 / RADIO
+    deltaR = deltaL
+    avanzeL = posL.getValue() + deltaL
+    avanzeR = posR.getValue() + deltaR
+    leftWheel.setPosition(avanzeL)
+    rightWheel.setPosition(avanzeR)
+    while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
+        continue
+    # Actualizamos posicion del robot cada vez que avanzamos
+    x,y = robot_pos
+    dx,dy = direction_deltas[direction]
+    robot_pos = (x+dx, y+dy)
+
+    return robot_pos, direction
+
+
 
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
@@ -361,15 +443,32 @@ def main():
             break
         init_move += 1
     
+
+    # 2 ETAPA: Exploracion y reconocimiento
     robot_pos = initial_pos
     objeto_interes = False
     time.sleep(SLEEP)
+
     while(robot.step(TIME_STEP) != -1):
         robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
         objeto_interes = check_camera(camera)
         if (objeto_interes):
-            base(map, robot_pos, initial_pos)
-            time.sleep(SLEEP)
+            ruta = base(map, robot_pos, initial_pos)
+            if ruta:
+                break
+
+    print(dir)        
+    time.sleep(SLEEP)
+    print(robot_pos)
+    # Vuelta a base
+    for x,y in ruta:
+        rx,ry = robot_pos
+        if x == rx and y == ry:
+            continue
+        print(f"x: {x}, y: {y}")
+        desired_direction = get_direction(robot_pos, (x,y))
+        robot_pos, dir = move_robot(leftWheel, rightWheel, posL, posR, robot, robot_pos, dir, desired_direction)
+
 
 
 if __name__ == "__main__":
