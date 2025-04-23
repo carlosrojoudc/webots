@@ -40,37 +40,36 @@ UMBRAL = 175
 # Umbral para la deteccion de amarillo
 THRESHOLD = 0.1
 
-# Nombres de los sensores de distancia basados en infrarrojo.
-INFRARED_SENSORS_NAMES = [
-    "rear left infrared sensor",
-    "left infrared sensor",
-    "front left infrared sensor",
-    "front infrared sensor",
-    "front right infrared sensor",
-    "right infrared sensor",
-    "rear right infrared sensor",
-    "rear infrared sensor",
-]
-
 GRID_OCUPACION = [[]]
 
-def enable_distance_sensors(robot, timeStep, sensorNames):
+def enable_sensors(robot, timeStep):
     """
-    Obtener y activar los sensores de distancia.
+    Obtener y activar los sensores del robot.
 
-    Return: lista con los sensores de distancia activados, en el mismo orden
-    establecido en la lista de  nombres (sensorNames).
+    Return: lista con los sensores activados.
     """
+    
+    sensors = {
+        "rear left infrared sensor":robot.getDevice("rear left infrared sensor"),
+        "left infrared sensor":robot.getDevice("left infrared sensor"),
+        "front left infrared sensor":robot.getDevice("front left infrared sensor"),
+        "front infrared sensor":robot.getDevice("front infrared sensor"),
+        "front right infrared sensor":robot.getDevice("front right infrared sensor"),
+        "right infrared sensor":robot.getDevice("right infrared sensor"),
+        "rear right infrared sensor":robot.getDevice("rear right infrared sensor"),
+        "rear infrared sensor":robot.getDevice("rear infrared sensor"),
+        "left wheel sensor":robot.getDevice("left wheel sensor"),
+        "right wheel sensor":robot.getDevice("right wheel sensor"),
+        "camera":robot.getDevice("camera")
+    }
+    
+    for sensor in sensors.values():
+        if sensor is sensors["camera"]:
+            sensor.enable(timeStep*10)
+        else:
+            sensor.enable(timeStep)
 
-    sensorList = []
-
-    for name in sensorNames:
-        sensorList.append(robot.getDevice(name))
-
-    for sensor in sensorList:
-        sensor.enable(timeStep)
-
-    return sensorList
+    return sensors
 
 
 def init_devices(timeStep):
@@ -81,76 +80,68 @@ def init_devices(timeStep):
       (cada dispositivo puede tener un valor diferente).
     """
 
-    # Get pointer to the robot.
+    # referencia al robot
     robot = Robot()
 
-    # Si queremos obtener el timestep de la simulación.
-    # simTimeStep = int(robot.getBasicTimeStep())
-
     # Obtener dispositivos correspondientes a los motores de las ruedas.
-    leftWheel = robot.getDevice("left wheel motor")
-    rightWheel = robot.getDevice("right wheel motor")
+    
+    motores = {
+        "derecha":robot.getDevice("right wheel motor"),
+        "izquierda":robot.getDevice("left wheel motor")
+    }
 
     # Configuración inicial para utilizar movimiento por posición (necesario para odometría).
     # En movimiento por velocidad, establecer posición a infinito (wheel.setPosition(float('inf'))).
-    leftWheel.setPosition(0)
-    rightWheel.setPosition(0)
-    leftWheel.setVelocity(0)
-    rightWheel.setVelocity(0)
+    
+    for wheel in motores.values():
+        wheel.setPosition(0)
+        wheel.setVelocity(0)
 
     # Obtener una lista con los sensores infrarrojos ya activados
-    irSensorList = enable_distance_sensors(robot, timeStep, INFRARED_SENSORS_NAMES)
+    sensorList = enable_sensors(robot, timeStep)
 
-    # Obtener el dispositivo de la cámara
-    camera = robot.getDevice("camera")
-    # Activar el dispositivo de la cámara (el tiempo de actualización de los frames
-    # de la cámara no debería ser muy alto debido al alto volumen de datos que implica).
-    camera.enable(timeStep * 10)
+    return robot, motores, sensorList
 
-    # Obtener y activar los sensores de posición de las ruedas (encoders).
-    posL = robot.getDevice("left wheel sensor")
-    posR = robot.getDevice("right wheel sensor")
-    posL.enable(timeStep)
-    posR.enable(timeStep)
-
-    # TODO: Obtener y activar otros dispositivos necesarios.
-    # ...
-
-    return robot, leftWheel, rightWheel, irSensorList, posL, posR, camera
-
-
-def process_image_rgb(camera):
-    """
-    Procesamiento del último frame capturado por el dispositivo de la cámara
-    (según el time_step establecido para la cámara).
-    ¡ATENCIÓN!: Esta función no es thread-safe, ya que accede al buffer en memoria de la cámara.
-
-    RECOMENDACIÓN: utilizar OpenCV para procesar más eficientemente la imagen
-    (ej. hacer una detección de color en HSV).
-    """
-
-    W = camera.getWidth()
-    H = camera.getHeight()
-
-    image = camera.getImage()
-
-    # Si es suficiente, podríamos procesar solo una parte de la imagen para optimizar .
-    for x in range(W//2, W//2+1):
-        for y in range(H//2, H//2+1):
-            b = camera.imageGetBlue(image, W, x, y)
-            g = camera.imageGetGreen(image, W, x, y)
-            r = camera.imageGetRed(image, W, x, y)
-
-            print(f"{b},{g},{r}")
-            # TODO: Procesar el pixel (x,y) de la imagen.
-            # ...
+def turn_right(robot, posL, posR, wheels):
+    deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
+    deltaR = -deltaL
+    giro_90L = posL.getValue() + deltaL
+    giro_90R = posR.getValue() + deltaR
+    wheels["izquierda"].setPosition(giro_90L)
+    wheels["derecha"].setPosition(giro_90R)
+    while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
+        continue
+    
+def turn_left(robot, posL, posR, wheels):
+    deltaL = -np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
+    deltaR = -deltaL
+    leftW = wheels["izquierda"]
+    rightW = wheels["derecha"]
+    giro_90L = posL.getValue() + deltaL
+    giro_90R = posR.getValue() + deltaR
+    leftW.setPosition(giro_90L)
+    rightW.setPosition(giro_90R)
+    while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
+        continue
+    
+def go_straight(robot, posL, posR, wheels):
+    deltaL = 250 / RADIO
+    deltaR = deltaL
+    leftW = wheels["izquierda"]
+    rightW = wheels["derecha"]
+    avanzeL = posL.getValue() + deltaL
+    avanzeR = posR.getValue() + deltaR
+    leftW.setPosition(avanzeL)
+    rightW.setPosition(avanzeR)
+    while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
+        continue
     
 """
 Se acumulan menos errores, si se realizan movimientos discretos celda a
 celda (el robot avanza o gira, se detiene, sensoriza, 
 vuelve a avanzar o girar).
 """
-def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, direction):
+def wallFollowing(sensors, wheels, robot, robot_pos, direction):
     direction_deltas = [
         (-1, 0),   # North
         (0, 1),   # East
@@ -159,69 +150,36 @@ def wallFollowing(sensors, leftWheel, rightWheel, posL, posR, robot, robot_pos, 
     ]
     
     # Lectura de sensores
-    left_sensor = sensors[1].getValue()
-    front_sensor = sensors[3].getValue()
-
-    left_wall = left_sensor > 150
-    front_wall = front_sensor > 150
+    left_sensor = sensors["left infrared sensor"].getValue()
+    front_sensor = sensors["front infrared sensor"].getValue()
+    left_wall = left_sensor > UMBRAL
+    front_wall = front_sensor > UMBRAL
 
 
     if front_wall:
         direction = (direction+1)%4
-        deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
-        deltaR = -deltaL
-        giro_90L = posL.getValue() + deltaL
-        giro_90R = posR.getValue() + deltaR
-        leftWheel.setPosition(giro_90L)
-        rightWheel.setPosition(giro_90R)
-        while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
-            continue
+        turn_right(robot, sensors["left wheel sensor"], sensors["right wheel sensor"], wheels)
     else:
         if left_wall:
-            deltaL = 250 / RADIO
-            deltaR = deltaL
-            avanzeL = posL.getValue() + deltaL
-            avanzeR = posR.getValue() + deltaR
-            leftWheel.setPosition(avanzeL)
-            rightWheel.setPosition(avanzeR)
-            while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
-                continue
-            # Actualizamos posicion del robot cada vez que avanzamos
-            x,y = robot_pos
-            dx,dy = direction_deltas[direction]
-            robot_pos = (x+dx, y+dy)
+            go_straight(robot, sensors["left wheel sensor"], sensors["right wheel sensor"], wheels)
         else:
             # Restamos cada vez que giramos a la izquierda
             direction = (direction-1) %4
-            deltaR = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
-            deltaL = -deltaR
-            giro_90L = posL.getValue() + deltaL
-            giro_90R = posR.getValue() + deltaR
-            leftWheel.setPosition(giro_90L)
-            rightWheel.setPosition(giro_90R)
-            while(robot.step(TIME_STEP) != -1 and (posL.getValue() <= giro_90L-ERROR or posR.getValue() <= giro_90R-ERROR)):
-                continue
+            turn_left(robot, sensors["left wheel sensor"], sensors["right wheel sensor"], wheels)
             # Y avanzamos
-            deltaL = 250 / RADIO
-            deltaR = deltaL
-            avanzeL = posL.getValue() + deltaL
-            avanzeR = posR.getValue() + deltaR
-            leftWheel.setPosition(avanzeL)
-            rightWheel.setPosition(avanzeR)
-            while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
-                continue
-            # Actualizamos posicion del robot cada vez que avanzamos
-            x,y = robot_pos
-            dx,dy = direction_deltas[direction]
-            robot_pos = (x+dx, y+dy)
+            go_straight(robot, sensors["left wheel sensor"], sensors["right wheel sensor"], wheels)
+            
+        # Actualizamos posicion del robot cada vez que avanzamos
+        x,y = robot_pos
+        dx,dy = direction_deltas[direction]
+        robot_pos = (x+dx, y+dy)
 
     return robot_pos, direction
 
 def mapping(mapa, robot_position, direction, sensors):
 
-    leftW = sensors[1].getValue() > 175
-    frontW = sensors[3].getValue() > 175
-    #rightW = sensors[5].getValue() > 150
+    leftW = sensors["left infrared sensor"].getValue() > UMBRAL
+    frontW = sensors["front infrared sensor"].getValue() > UMBRAL
 
     x, y = robot_position
 
@@ -229,23 +187,28 @@ def mapping(mapa, robot_position, direction, sensors):
         case 0:
             if leftW:
                 mapa[x, y-1] = 1
-            #if frontW:
-                #mapa[x-1, y] = 1
         case 1:
-            if leftW:
+            if leftW and mapa[x-1, y] != 2:
                 mapa[x-1, y] = 1
             if frontW:
                 mapa[x, y+1] = 1
+                if check_camera(sensors["camera"]):
+                    mapa[x, y+1] = 2
+                
         case 2:
-            if leftW:
+            if leftW and mapa[x, y+1] != 2:
                 mapa[x, y+1] = 1
             if frontW:
                 mapa[x+1, y] = 1
+                if check_camera(sensors["camera"]):
+                    mapa[x+1, y] = 2
         case 3:
-            if leftW:
+            if leftW and mapa[x+1, y] != 2:
                 mapa[x+1, y] = 1
             if frontW:
                 mapa[x, y-1] = 1
+                if check_camera(sensors["camera"]):
+                    mapa[x, y-1] = 2
         case _:
             print(f"ERROR DIRECCION: {direction}")
     return mapa
@@ -255,18 +218,11 @@ def mapping(mapa, robot_position, direction, sensors):
     y avanza lo que provoca un comportamiento erroneo.
     Init_position deja al robot con la pared a su izquierda.
 """
-def init_position(sensors, robot, leftW, rightW, posL, posR):
-    if sensors[1].getValue() > 150 or sensors[3].getValue() > 150:
+def init_position(sensors, robot, wheels):
+    if sensors["left infrared sensor"].getValue() > UMBRAL or sensors["front infrared sensor"].getValue() > UMBRAL:
         return
-    if sensors[5].getValue() > 150:
-        deltaL = np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
-        deltaR = -deltaL
-        giro_90L = posL.getValue() + deltaL
-        giro_90R = posR.getValue() + deltaR
-        leftW.setPosition(giro_90L)
-        rightW.setPosition(giro_90R)
-        while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
-            continue
+    if sensors["right infrared sensor"].getValue() > UMBRAL:
+        turn_right(robot, sensors["left wheel sensor"], sensors["right wheel sensor"], wheels)
 
 def optimized_map(mapa, init_pos):
     x,y = init_pos
@@ -320,6 +276,7 @@ def check_camera(camera):
 
     current = size/(W*H)
     if current >= THRESHOLD:
+        print("amarillo")
         return True
     return False
 
@@ -339,45 +296,34 @@ def get_direction(robot_pos, obj_pos):
             return 3
         
 
-def move_robot(leftWheel, rightWheel, posL, posR, robot, robot_pos, direction, desired_direction):
-    grados = 0
+def move_robot(wheels, posL, posR, robot, robot_pos, direction, desired_direction):
     diference = abs(direction -desired_direction)
     # Calculamos la direccion a la que tiene que girar
-    if diference == 0:
+    if diference != 0:
         # No tiene que girar
-        grados = 0
-    elif diference > 2:
-        if direction < desired_direction:
-            # Tiene que girar a izquierda
-            direction = (direction-1)%4
-            grados = -np.pi/2
+        if diference > 2:
+            if direction < desired_direction:
+                # Tiene que girar a izquierda
+                direction = (direction-1)%4
+                turn_left(robot, posL, posR, wheels)
+            else:
+                # Tiene que girar a derecha
+                direction = (direction+1)%4
+                turn_right(robot, posL, posR, wheels)
+        elif diference == 2:
+            direction = (direction+2)%4
+            # Tiene que girar 180 grados
+            turn_right(robot, posL, posR, wheels)
+            turn_right(robot, posL, posR, wheels)
         else:
-            # Tiene que girar a derecha
-            direction = (direction+1)%4
-            grados = np.pi/2
-    elif diference == 2:
-        direction = (direction+2)%4
-        # Tiene que girar 180 grados
-        grados = np.pi
-    else:
-        if direction < desired_direction:
-            # Tiene que girar a derecha
-            direction = (direction+1)%4
-            grados = np.pi/2
-        else:
-            # Tiene que girar a izquierda
-            direction = (direction-1)%4
-            grados = -np.pi/2
-    
-    # Gira:
-    deltaL = grados * RADIO_ENTRE_RUEDAS / RADIO
-    deltaR = -deltaL
-    giro_90L = posL.getValue() + deltaL
-    giro_90R = posR.getValue() + deltaR
-    leftWheel.setPosition(giro_90L)
-    rightWheel.setPosition(giro_90R)
-    while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
-        continue
+            if direction < desired_direction:
+                # Tiene que girar a derecha
+                direction = (direction+1)%4
+                turn_right(robot, posL, posR, wheels)
+            else:
+                # Tiene que girar a izquierda
+                direction = (direction-1)%4
+                turn_left(robot, posL, posR, wheels)
 
     direction_deltas = [
         (-1, 0),   # North
@@ -387,14 +333,7 @@ def move_robot(leftWheel, rightWheel, posL, posR, robot, robot_pos, direction, d
     ]
     
     # Avanza:
-    deltaL = 250 / RADIO
-    deltaR = deltaL
-    avanzeL = posL.getValue() + deltaL
-    avanzeR = posR.getValue() + deltaR
-    leftWheel.setPosition(avanzeL)
-    rightWheel.setPosition(avanzeR)
-    while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
-        continue
+    go_straight(robot, posL, posR, wheels)
     # Actualizamos posicion del robot cada vez que avanzamos
     x,y = robot_pos
     dx,dy = direction_deltas[direction]
@@ -406,16 +345,14 @@ def move_robot(leftWheel, rightWheel, posL, posR, robot, robot_pos, direction, d
 
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
-    robot, leftWheel, rightWheel, irSensorList, posL, posR, camera = init_devices(TIME_STEP)
+    robot, wheels, sensorList = init_devices(TIME_STEP)
 
     # Ejecutamos una sincronización para tener disponible el primer frame de la cámara.
     robot.step(TIME_STEP)
 
     # Establecemos la velocidad del robot
-    left_speed = CRUISE_SPEED
-    right_speed = CRUISE_SPEED
-    leftWheel.setVelocity(left_speed)
-    rightWheel.setVelocity(right_speed)
+    for wheel in wheels.values():
+        wheel.setVelocity(CRUISE_SPEED)
     
     # TODO Implementar arquitectura de control del robot.
     # 1 etapa: Wall following y mapeado
@@ -427,15 +364,15 @@ def main():
     map = np.zeros(MAP_SIZE, np.uint8)
 
     # Colocar el robot con el muro a su izquierda, delante o detras para evitar errores
-    init_position(irSensorList, robot, leftWheel, rightWheel, posL, posR)
+    init_position(sensorList, robot, wheels)
 
     # Variable que controla si nos movemos por primera vez
     # De esta forma controlamos la condicion de parada
     init_move = -2
     while(robot.step(TIME_STEP) != -1):
-        robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
+        robot_pos, dir = wallFollowing(sensorList, wheels, robot, robot_pos, dir)
         time.sleep(SLEEP)
-        map = mapping(map, robot_pos, dir, irSensorList)
+        map = mapping(map, robot_pos, dir, sensorList)
         # Llegamos al principio?
         if (initial_pos == robot_pos and (init_move >= 0)):
             map, initial_pos = optimized_map(map, initial_pos)
@@ -450,8 +387,8 @@ def main():
     time.sleep(SLEEP)
 
     while(robot.step(TIME_STEP) != -1):
-        robot_pos, dir = wallFollowing(irSensorList, leftWheel, rightWheel, posL, posR, robot, robot_pos, dir)
-        objeto_interes = check_camera(camera)
+        robot_pos, dir = wallFollowing(sensorList, wheels, robot, robot_pos, dir)
+        objeto_interes = check_camera(sensorList["camera"])
         if (objeto_interes):
             ruta = base(map, robot_pos, initial_pos)
             if ruta:
@@ -467,7 +404,7 @@ def main():
             continue
         print(f"x: {x}, y: {y}")
         desired_direction = get_direction(robot_pos, (x,y))
-        robot_pos, dir = move_robot(leftWheel, rightWheel, posL, posR, robot, robot_pos, dir, desired_direction)
+        robot_pos, dir = move_robot(wheels, sensorList["left wheel sensor"], sensorList["right wheel sensor"], robot, robot_pos, dir, desired_direction)
 
 
 
