@@ -115,24 +115,20 @@ def turn_right(robot, posL, posR, wheels):
 def turn_left(robot, posL, posR, wheels):
     deltaL = -np.pi/2 * RADIO_ENTRE_RUEDAS / RADIO
     deltaR = -deltaL
-    leftW = wheels["izquierda"]
-    rightW = wheels["derecha"]
     giro_90L = posL.getValue() + deltaL
     giro_90R = posR.getValue() + deltaR
-    leftW.setPosition(giro_90L)
-    rightW.setPosition(giro_90R)
+    wheels["izquierda"].setPosition(giro_90L)
+    wheels["derecha"].setPosition(giro_90R)
     while(robot.step(TIME_STEP) != -1 and (posL.getValue() < giro_90L-ERROR or posR.getValue() < giro_90R-ERROR)):
         continue
     
 def go_straight(robot, posL, posR, wheels):
     deltaL = 250 / RADIO
     deltaR = deltaL
-    leftW = wheels["izquierda"]
-    rightW = wheels["derecha"]
     avanzeL = posL.getValue() + deltaL
     avanzeR = posR.getValue() + deltaR
-    leftW.setPosition(avanzeL)
-    rightW.setPosition(avanzeR)
+    wheels["izquierda"].setPosition(avanzeL)
+    wheels["derecha"].setPosition(avanzeR)
     while(robot.step(TIME_STEP) != -1 and (posL.getValue() < avanzeL or posR.getValue() < avanzeR)):
         continue
     
@@ -188,27 +184,21 @@ def mapping(mapa, robot_position, direction, sensors):
             if leftW:
                 mapa[x, y-1] = 1
         case 1:
-            if leftW and mapa[x-1, y] != 2:
+            if leftW:
                 mapa[x-1, y] = 1
             if frontW:
                 mapa[x, y+1] = 1
-                if check_camera(sensors["camera"]):
-                    mapa[x, y+1] = 2
                 
         case 2:
-            if leftW and mapa[x, y+1] != 2:
+            if leftW:
                 mapa[x, y+1] = 1
             if frontW:
                 mapa[x+1, y] = 1
-                if check_camera(sensors["camera"]):
-                    mapa[x+1, y] = 2
         case 3:
-            if leftW and mapa[x+1, y] != 2:
+            if leftW:
                 mapa[x+1, y] = 1
             if frontW:
                 mapa[x, y-1] = 1
-                if check_camera(sensors["camera"]):
-                    mapa[x, y-1] = 2
         case _:
             print(f"ERROR DIRECCION: {direction}")
     return mapa
@@ -240,6 +230,11 @@ def optimized_map(mapa, init_pos):
     new_map = mapa[first_row:last_row, first_col:last_col]
     x =  x-first_row
     y = y-first_col
+    
+    pasillo = False
+    change = True
+    previous_slot = 0
+    
     return new_map, (x,y)
 
 """
@@ -276,7 +271,6 @@ def check_camera(camera):
 
     current = size/(W*H)
     if current >= THRESHOLD:
-        print("amarillo")
         return True
     return False
 
