@@ -2,7 +2,7 @@
 Robótica
 Grado en Ingeniería Informática
 Universidade da Coruña
-Author: Alejandro Paz
+Author: Alejandro Paz y José Manuel Fernández Montáns
 
 Ejemplo de uso de sensores/actuadores básicos y cámara con robot Khepera4 en Webots.
 """
@@ -50,14 +50,9 @@ def enable_sensors(robot, timeStep):
     """
     
     sensors = {
-        "rear left infrared sensor":robot.getDevice("rear left infrared sensor"),
         "left infrared sensor":robot.getDevice("left infrared sensor"),
-        "front left infrared sensor":robot.getDevice("front left infrared sensor"),
         "front infrared sensor":robot.getDevice("front infrared sensor"),
-        "front right infrared sensor":robot.getDevice("front right infrared sensor"),
         "right infrared sensor":robot.getDevice("right infrared sensor"),
-        "rear right infrared sensor":robot.getDevice("rear right infrared sensor"),
-        "rear infrared sensor":robot.getDevice("rear infrared sensor"),
         "left wheel sensor":robot.getDevice("left wheel sensor"),
         "right wheel sensor":robot.getDevice("right wheel sensor"),
         "camera":robot.getDevice("camera")
@@ -175,30 +170,58 @@ def wallFollowing(sensors, wheels, robot, robot_pos, direction):
 def mapping(mapa, robot_position, direction, sensors):
 
     leftW = sensors["left infrared sensor"].getValue() > UMBRAL
+    rightW = sensors["right infrared sensor"].getValue() > UMBRAL
     frontW = sensors["front infrared sensor"].getValue() > UMBRAL
 
     x, y = robot_position
 
     match direction:
         case 0:
-            if leftW:
+            if leftW and mapa[x, y-1] != 2:
                 mapa[x, y-1] = 1
+            if frontW:
+                mapa[x-1, y] = 1 + check_camera(sensors["camera"])
+            if rightW and mapa[x, y+1] != 2:
+                mapa[x, y+1] = 1
+            if leftW and frontW and mapa[x-1, y-1] != 2:
+                mapa[x-1, y-1] = 1
+            if rightW and frontW and mapa[x-1, y+1] != 2:
+                mapa[x-1, y+1] = 1
         case 1:
-            if leftW:
+            if leftW and mapa[x-1, y] != 2:
                 mapa[x-1, y] = 1
             if frontW:
-                mapa[x, y+1] = 1
+                mapa[x, y+1] = 1 + check_camera(sensors["camera"])
+            if rightW and mapa[x+1, y] != 2:
+                mapa[x+1, y] = 1
+            if leftW and frontW and mapa[x-1, y+1] != 2:
+                mapa[x-1, y+1] = 1
+            if rightW and frontW and mapa[x+1, y+1] != 2:
+                mapa[x+1, y+1] = 1
                 
         case 2:
-            if leftW:
+            if leftW and mapa[x, y+1] != 2:
                 mapa[x, y+1] = 1
             if frontW:
-                mapa[x+1, y] = 1
+                mapa[x+1, y] = 1 + check_camera(sensors["camera"])
+            if rightW and mapa[x, y-1] != 2:
+                mapa[x, y-1] = 1
+            if leftW and frontW and mapa[x+1, y+1] != 2:
+                mapa[x+1, y+1] = 1
+            if rightW and frontW and mapa[x+1, y-1] != 2:
+                mapa[x+1, y-1] = 1
+            
         case 3:
-            if leftW:
+            if leftW and mapa[x+1, y] != 2:
                 mapa[x+1, y] = 1
             if frontW:
-                mapa[x, y-1] = 1
+                mapa[x, y-1] = 1 + check_camera(sensors["camera"])
+            if rightW and mapa[x-1, y] != 2:
+                mapa[x-1, y] = 1
+            if leftW and frontW and mapa[x+1, y-1] != 2:
+                mapa[x+1, y-1] = 1
+            if rightW and frontW and mapa[x-1, y-1] != 2:
+                mapa[x-1, y-1] = 1
         case _:
             print(f"ERROR DIRECCION: {direction}")
     return mapa
@@ -231,9 +254,10 @@ def optimized_map(mapa, init_pos):
     x =  x-first_row
     y = y-first_col
     
-    pasillo = False
-    change = True
-    previous_slot = 0
+    for i, fila in enumerate(new_map):
+        for j, casilla in enumerate(fila):
+            if casilla == 2:
+                new_map[i][j] = 0
     
     return new_map, (x,y)
 
@@ -387,10 +411,8 @@ def main():
             ruta = base(map, robot_pos, initial_pos)
             if ruta:
                 break
-
-    print(dir)        
+      
     time.sleep(SLEEP)
-    print(robot_pos)
     # Vuelta a base
     for x,y in ruta:
         rx,ry = robot_pos
