@@ -53,6 +53,8 @@ def enable_sensors(robot, timeStep):
         "left infrared sensor":robot.getDevice("left infrared sensor"),
         "front infrared sensor":robot.getDevice("front infrared sensor"),
         "right infrared sensor":robot.getDevice("right infrared sensor"),
+        "front left infrared sensor":robot.getDevice("front left infrared sensor"),
+        "front right infrared sensor":robot.getDevice("front right infrared sensor"),
         "left wheel sensor":robot.getDevice("left wheel sensor"),
         "right wheel sensor":robot.getDevice("right wheel sensor"),
         "camera":robot.getDevice("camera")
