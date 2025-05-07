@@ -16,6 +16,10 @@ UMBRAL = 200
 
 SLEEP = 0.05
 
+GAMMA = 0.5
+
+VISITAS = np.zeros((3,3),np.uint8)
+
 def enable_sensors(robot, timeStep):
     """
     Obtener y activar los sensores del robot.
@@ -90,14 +94,11 @@ def go_straight(wheels):
     wheels["izquierda"].setVelocity(CRUISE_SPEED)
     wheels["derecha"].setVelocity(CRUISE_SPEED)
 
-def refuerzo(sensors, wheels, matrix):
 
-    pass
-    #go_straight(wheels)
-    #time.sleep(SLEEP)
-    #turn_left(wheels)
-    #turn_right(wheels)
-    #time.sleep(SLEEP + 0.1)
+def refuerzo(sensors, wheels, matrix, s, action):
+    r = action_result()
+    s_prima = current_state(sensors)
+    matrix = update_matrix(matrix, s, action, s_prima)
 
 
 """
@@ -111,12 +112,17 @@ def current_state(sensors):
     else:
         return 2
 
+
 """
 Después de realizar una acción, programar función que establece un valor numérico de
 refuerzo (positivo o negativo).
 """
-def action_result(sensors, action):
-    pass
+def action_result(antes, ahora):
+    if (antes[0] > 750 and ahora[0] < 500) and (ahora[1]):
+        return 1
+    if antes[1] > 750 and ahora[1] < 500:
+        return 1
+    return 0
 
 
 """
@@ -124,12 +130,13 @@ Actualizar la matriz Q (3x3), con la fórmula de entornos no deterministas
 state = fila,
 action = columna
 """
-def update_matrix(matrix, state:int, action:int):
-    alphaN=0
-    r = action_result(action) # Refuerzon inmediato, meter por parametro
-    matrix[state,action] = (1 - alphaN)*matrix[state,action] + alphaN{r + gamna*max(matrix[state,action])}
-    return matrix
+def update_matrix(matrix, state:int, action:int, state_prima:int):
+    VISITAS[state, action]+=1
+    alphaN=1/(1+VISITAS(state, action)) # Numero de veces que el par stado-accion ha sido visitado
 
+    r = action_result(action) # Refuerzon inmediato, meter por parametro
+    matrix[state,action] = (1 - alphaN)*matrix[state,action] + alphaN*(r + GAMMA*np.max(matrix[state_prima,:]))
+    return matrix
 
 def evitar_paredes(sensors, wheels):
     # simple obstacle avoidance algorithm
@@ -140,6 +147,13 @@ def evitar_paredes(sensors, wheels):
     wheels["izquierda"].setVelocity(speed_offset + speed_delta)
     wheels["derecha"].setVelocity(speed_offset - speed_delta)
 
+
+def decision(estado, random_chance, matrix):
+    if np.random.rand() <= random_chance:
+        #accion aleatoria
+        return np.random.randint(0, 3)
+    return np.max(matrix[estado,:])
+
 def main():
     # Activamos los dispositivos necesarios y obtenemos referencias a ellos.
     robot, wheels, sensorList = init_devices(TIME_STEP)
@@ -148,11 +162,17 @@ def main():
 
     matrizQ = np.zeros((3,3), np.float16)
 
+    iterations = 0
+
+    # Tomamos una accion aleatoria
+    estado_inicial = current_state(sensorList)
+    accion = decision()
     while(robot.step(TIME_STEP) != -1):
         if (sensorList["front infrared sensor"].getValue() > UMBRAL or sensorList["front left infrared sensor"].getValue() > UMBRAL or sensorList["front right infrared sensor"].getValue() > UMBRAL):
             evitar_paredes(sensorList, wheels)
         else:
-            refuerzo(sensorList, wheels, matrizQ)
+            refuerzo(sensorList, wheels, matrizQ, iterations)
+            iterations += 1
             
 
 if __name__ == "__main__":
