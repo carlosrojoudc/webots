@@ -91,11 +91,35 @@ def go_straight(wheels):
     wheels["derecha"].setVelocity(CRUISE_SPEED)
 
 def refuerzo(sensors, wheels, matrix):
-    go_straight(wheels)
+
+    pass
+    #go_straight(wheels)
     #time.sleep(SLEEP)
-    turn_left(wheels)
-    turn_right(wheels)
+    #turn_left(wheels)
+    #turn_right(wheels)
     #time.sleep(SLEEP + 0.1)
+
+
+"""
+Programar función que determine el estado actual.
+"""
+def current_state():
+    pass
+
+"""
+Después de realizar una acción, programar función que establece un valor numérico de
+refuerzo (positivo o negativo).
+"""
+def action_result():
+    pass
+
+
+"""
+Actualizar la matriz Q (3x3), con la fórmula de entornos no deterministas
+"""
+def update_matrix():
+    pass
+
 
 def evitar_paredes(sensors, wheels):
     # simple obstacle avoidance algorithm
