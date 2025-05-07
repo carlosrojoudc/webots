@@ -103,22 +103,32 @@ def refuerzo(sensors, wheels, matrix):
 """
 Programar función que determine el estado actual.
 """
-def current_state():
-    pass
+def current_state(sensors):
+    if sensors[9] > 750 and sensors[11] < 500:
+        return 0
+    elif sensors[10] > 750 and sensors[8] < 500:
+        return 1
+    else:
+        return 2
 
 """
 Después de realizar una acción, programar función que establece un valor numérico de
 refuerzo (positivo o negativo).
 """
-def action_result():
+def action_result(sensors, action):
     pass
 
 
 """
 Actualizar la matriz Q (3x3), con la fórmula de entornos no deterministas
+state = fila,
+action = columna
 """
-def update_matrix():
-    pass
+def update_matrix(matrix, state:int, action:int):
+    alphaN=0
+    r = action_result(action) # Refuerzon inmediato, meter por parametro
+    matrix[state,action] = (1 - alphaN)*matrix[state,action] + alphaN{r + gamna*max(matrix[state,action])}
+    return matrix
 
 
 def evitar_paredes(sensors, wheels):
