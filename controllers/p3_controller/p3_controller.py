@@ -12,6 +12,8 @@ CRUISE_SPEED = 8
 # Time step por defecto para el controlador.
 TIME_STEP = 32
 
+ITERACTIONS = 1000
+
 UMBRAL = 200
 
 SLEEP = 0.05
@@ -202,12 +204,15 @@ def main():
             despues = leer_sensores(sensorList)
             r = action_result(antes, despues)
             s_prima = current_state(sensorList)
-            matrizQ = update_matrix(matrizQ, s, a, s_prima, r)
+            if iterations <= ITERACTIONS:
+                matrizQ = update_matrix(matrizQ, s, a, s_prima, r)
+                iterations += 1
             s = s_prima
             a = decision(s, matrizQ)
-            iterations += 1
-        if iterations % 100 == 0 and CHANCE >= 0.0:
-            CHANCE -= 0.02
+        if iterations % (ITERACTIONS/50) == 0 and CHANCE >= 0.0:
+            CHANCE -= 1/50
+        if iterations == ITERACTIONS:
+            CHANCE = 0
         print(iterations)
         print(CHANCE)
         print(matrizQ)
