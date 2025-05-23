@@ -80,7 +80,7 @@ def init_devices(timeStep):
 
     return robot, motores, sensorList
 
-def turn_right( wheels):
+def turn_right(wheels):
     print("Derecha")
     wheels["izquierda"].setVelocity(CRUISE_SPEED*2)
     wheels["derecha"].setVelocity(CRUISE_SPEED)
@@ -168,6 +168,7 @@ def realizar_accion(action):
             turn_left()
         case 2:
             go_straight()
+    time.sleep(100)
 
 
 def main():
