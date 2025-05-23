@@ -10,7 +10,7 @@ MAX_SPEED = 47.6
 # Velocidad por defecto para este comportamiento.
 CRUISE_SPEED = 8
 # Time step por defecto para el controlador.
-TIME_STEP = 32
+TIME_STEP = 64
 
 UMBRAL = 200
 
@@ -102,9 +102,10 @@ def go_straight(wheels):
 Programar función que determine el estado actual.
 """
 def current_state(sensors):
+    print("Determinando estado... ")
     if sensors["ground front left infrared sensor"].getValue() > 750 and sensors["ground right infrared sensor"].getValue() < 500:
         return 0
-    elif sensors["ground front left infrared sensor"].getValue() > 750 and sensors["ground left infrared sensor"].getValue() < 500:
+    elif sensors["ground front right infrared sensor"].getValue() > 750 and sensors["ground left infrared sensor"].getValue() < 500:
         return 1
     else:
         return 2
@@ -115,9 +116,13 @@ Después de realizar una acción, programar función que establece un valor num�
 refuerzo (positivo o negativo).
 """
 def action_result(antes, ahora):
-    if (antes[0] > 750 and ahora[0] < 500) and (ahora[1]):
+    print(f"Action result antes[1]({antes[1]},{ahora[1]}),({antes[2]}, {ahora[2]}) ")
+    # and (ahora[0] < 500 and ahora[2] < 500):
+    # and (ahora[1] < 500 and ahora[3] < 500):
+        
+    if (antes[1] > 750 and ahora[1] < 500) or (antes[1] < 500 and ahora[1] < 500):
         return 1
-    if antes[1] > 750 and ahora[1] < 500:
+    if (antes[2] > 750 and ahora[2] < 500) or (antes[1] < 500 and ahora[1] < 500):
         return 1
     return 0
 
@@ -128,14 +133,16 @@ state = fila,
 action = columna
 """
 def update_matrix(matrix, state:int, action:int, state_prima:int, r):
+    print("Updating matrix... ")
     VISITAS[state, action]+=1
-    alphaN=1/(1+VISITAS(state, action)) # Numero de veces que el par stado-accion ha sido visitado
+    alphaN=1/(1+VISITAS[state, action]) # Numero de veces que el par stado-accion ha sido visitado
 
     matrix[state,action] = (1 - alphaN)*matrix[state,action] + alphaN*(r + GAMMA*np.max(matrix[state_prima,:]))
     return matrix
 
 
 def evitar_paredes(sensors, wheels):
+    print("Evita paredes")
     # simple obstacle avoidance algorithm
     # based on the front infrared sensors
     speed_offset = 0.2 * (MAX_SPEED - 0.03 * sensors["front infrared sensor"].getValue())
@@ -146,13 +153,14 @@ def evitar_paredes(sensors, wheels):
 
 
 def decision(estado, matrix):
+    print("Decidiendo accion...")
     if np.random.rand() <= CHANCE:
-        #accion aleatoria
         return np.random.randint(0, 3)
     return np.max(matrix[estado,:])
 
 
 def leer_sensores(sensores):
+    print("Leyendo sensores... ")
     valores = []
     for i, name in enumerate(sensores):
         if i > 7:
@@ -160,15 +168,15 @@ def leer_sensores(sensores):
     return valores
 
 
-def realizar_accion(action):
+def realizar_accion(action, wheels):
+    print("Actuando ")
     match action:
         case 0:
-            turn_right()
+            turn_right(wheels)
         case 1:
-            turn_left()
+            turn_left(wheels)
         case 2:
-            go_straight()
-    time.sleep(100)
+            go_straight(wheels)
 
 
 def main():
@@ -177,30 +185,45 @@ def main():
 
     robot.step(TIME_STEP)
 
-    matrizQ = np.zeros((3,3), np.float16)
+    matrizQ = np.zeros((3,3), np.double)
 
     iterations = 0
 
     # Tomamos una accion aleatoria
     s = current_state(sensorList)
     a = decision(s, matrizQ)
+    print(f"Accion decidida: {a}")
+    total = 0
+    final = False
+    chance = 1
+    antes = [1,1,1,1]
     while(robot.step(TIME_STEP) != -1):
+        
         if (sensorList["front infrared sensor"].getValue() > UMBRAL or sensorList["front left infrared sensor"].getValue() > UMBRAL or sensorList["front right infrared sensor"].getValue() > UMBRAL):
             evitar_paredes(sensorList, wheels)
         else:
-            antes = leer_sensores(sensorList)
-            realizar_accion(a)
+            realizar_accion(a, wheels)
             despues = leer_sensores(sensorList)
             r = action_result(antes, despues)
+            if r > 0:
+                print("Accion positiva")
+            else:
+                print("Accion negativa")
             s_prima = current_state(sensorList)
             matrizQ = update_matrix(matrizQ, s, a, s_prima, r)
             s = s_prima
             a = decision(s, matrizQ)
+            antes = despues
             iterations += 1
-        if iterations / 100 < 0:
-            CHANCE = CHANCE - 0.1
-            
-
+            if not final:
+                print("Actualizando iters...")
+                if iterations >= 100:
+                    chance = chance - 0.2
+                    total = total + iterations
+                    iterations = 0
+                    if total >= 500:
+                        chance = 0
+                        final = True
 if __name__ == "__main__":
     main()
 
